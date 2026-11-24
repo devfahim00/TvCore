@@ -1,0 +1,16 @@
+[package]
+name = "tvcore-cli"
+description = "Command line front-end for tvcore"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "tvcore"
+path = "src/main.rs"
+
+[dependencies]
+tvcore = { path = "../tvcore" }
+serde_json = "1"

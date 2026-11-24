@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Live TV</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://unpkg.com/feather-icons"></script>
+        <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+        <script>
+            tailwind.config = {
+                theme: {
+                    extend: {
+                        fontFamily: {
+                            sans: ['Inter', 'system-ui', 'sans-serif']
+                        },
+                    }
+                }
+            }
+        </script>
+        <style>
+            * {
+                font-family: 'Inter', system-ui, sans-serif;
+            }
+
+            @keyframes fadeInUp {
+                from {
+                    opacity: 0;
+                    transform: translateY(24px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+
+                to {
+                    opacity: 1;
+                }
+            }
+
+            @keyframes slideIn {
+                from {
+                    opacity: 0;
+                    transform: translateX(-12px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateX(0);
+                }
+            }
+
+            @keyframes pulse-glow {
+                0%, 100% {
+                    box-shadow: 0 0 0 0 rgba(59,130,246,0);
+                }
+
+                50% {
+                    box-shadow: 0 0 24px 4px rgba(59,130,246,0.15);
+                }
+            }
+
+            .animate-fade-in-up {
+                animation: fadeInUp 0.5s ease both;
+            }
+
+            .animate-fade-in {
+                animation: fadeIn 0.4s ease both;
+            }
+
+            .animate-slide-in {
+                animation: slideIn 0.4s ease both;
+            }
+
+            .card-hidden {
+                opacity: 0 !important;
+                transform: scale(0.92) !important;
+                pointer-events: none;
+                position: absolute;
+                visibility: hidden;
+            }
+
+            .card-visible {
+                opacity: 1;
+                transform: scale(1);
+                position: relative;
+                visibility: visible;
+            }
+
+            /* Scrollbar */
+            ::-webkit-scrollbar {
+                height: 6px;
+                width: 6px;
+            }
+
+            ::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
+            ::-webkit-scrollbar-thumb {
+                background: #374151;
+                border-radius: 3px;
+            }
+
+            ::-webkit-scrollbar-thumb:hover {
+                background: #4b5563;
+            }
+
+            /* Category chips scrollbar hide */
+            .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+            }
+
+            .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+
+            /* Hero gradient overlay */
+            .hero-gradient {
+                background: linear-gradient(135deg, rgba(6,182,212,0.12) 0%, rgba(59,130,246,0.08) 50%, rgba(139,92,246,0.06) 100%);
+            }
+        </style>
+    </head>
+    <body class="bg-[#030712] text-gray-100 min-h-screen antialiased">
+        <!-- Header -->
+        <header id="site-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <a href="/" class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-violet-600 rounded-lg flex items-center justify-center">
+                            <i data-feather="tv" class="w-4 h-4 text-white"></i>
+                        </div>
+                        <span class="text-lg font-bold bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">Live TV</span>
+                    </a>
+                    <span id="online-count" class="shrink-0 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20 text-xs font-medium text-green-400 flex items-center gap-1.5">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+                        0 online
+                
+                    </span>
+                    <div class="relative shrink-0">
+                        <button id="more-btn" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-all duration-200">
+                            More <i data-feather="chevron-down" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <div id="more-dropdown" class="hidden absolute right-0 top-full mt-2 w-48 bg-gray-800 border border-gray-700 rounded-xl shadow-xl shadow-black/30 py-1 z-50">
+                            <a href="/links" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+                                <i data-feather="link" class="w-4 h-4"></i>
+                                Server Links
+                        
+                            </a>
+                            <a href="/v2" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+                                <i data-feather="link" class="w-4 h-4"></i>
+                                Previous Version
+                        
+                            </a>
+                            <a href="/ITCN_1.0.1.apk" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+                                <i data-feather="smartphone" class="w-4 h-4"></i>
+                                Android App
+                        
+                            </a>
+                            <a href="/Next View_1.2.1.apk" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors">
+                                <i data-feather="smartphone" class="w-4 h-4"></i>
+                                Next View App
+                        
+                            </a>
+                            <span class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"> (Your IP:0.0.0.0)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <main>
+            <!-- Last Played -->
+            <section id="last-played-section" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-4 hidden">
+                <h2 class="text-lg font-bold text-gray-300 mb-4 flex items-center gap-2">
+                    <i data-feather="clock" class="w-5 h-5"></i>
+                    Last Played
+            
+                </h2>
+                <div id="last-played-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4"></div>
+            </section>
+            <!-- Search + Categories -->
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-2">
+                <div class="flex flex-row items-center gap-3">
+                    <div class="relative shrink-0">
+                        <i data-feather="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none"></i>
+                        <input type="text" id="search-input" placeholder="Search channels..." class="w-40 sm:w-56 lg:w-72 pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-gray-200 placeholder-gray-500 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 focus:bg-white/10 outline-none transition-all duration-300 backdrop-blur-sm" autocomplete="off">
+                    </div>
+                    <div class="flex items-center gap-3 overflow-x-auto hide-scrollbar pb-2" id="category-chips">
+                        <button data-category="" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-blue-500/15 text-blue-300 border border-blue-500/30 hover:bg-blue-500/25 active:scale-95">All</button>
+                        <button data-category="SPORTS" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">SPORTS</button>
+                        <button data-category="BANGLA" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">BANGLA</button>
+                        <button data-category="INDIAN BANGLA" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">INDIAN BANGLA</button>
+                        <button data-category="HINDI" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">HINDI</button>
+                        <button data-category="MUSIC" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">MUSIC</button>
+                        <button data-category="KIDS" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">KIDS</button>
+                        <button data-category="ISLAMIC" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">ISLAMIC</button>
+                        <button data-category="ENGLISH" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">ENGLISH</button>
+                        <button data-category="DOCUMENTARY" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">DOCUMENTARY</button>
+                        <button data-category="ENGLISH NEWS" class="cat-chip shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 hover:text-gray-200 active:scale-95">ENGLISH NEWS</button>
+                    </div>
+                </div>
+            </section>
+            <!-- Channel Grid -->
+            <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div id="no-results" class="text-center py-24 hidden animate-fade-in">
+                    <div class="w-20 h-20 mx-auto mb-6 rounded-2xl bg-gray-900/50 border border-white/5 flex items-center justify-center">
+                        <i data-feather="search" class="w-8 h-8 text-gray-700"></i>
+                    </div>
+                    <p class="text-xl font-semibold text-gray-500 mb-2">No channels found</p>
+                    <p class="text-sm text-gray-600">Try a different search term or category.</p>
+                </div>
+                <div id="channels-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0s" data-title="T Sports HD" data-category="SPORTS" data-link="https://s1.itcnbd.live/T-Sports-HD/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEirWpGtNoXEImEsBvrMeKO31Llaeu-4VWoQ35oZVF6gc98x9_rLkGj1B-wiv5P99v4ZxQpMl44RVSmDJ9IjkmQRZG5DWEvM7xBusVGuyRXWDFR0zJl1jWYphnTTpBlliwPu1WZ7V5bVeEM6E1TgtnK4IYFLyF3ttQoWRrzEaKSC9phcJo7nNMWhHFQRpg/s600/Nur_20251215_124106_0000.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">T Sports HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.04s" data-title="BTV National" data-category="BANGLA" data-link="https://s1.itcnbd.live/btv/tracks-v1a1/playlist.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a54cc69d8f44.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">BTV National</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.08s" data-title="Somoy TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/somoy/tracks-v1a1/playlist.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/2cfd083570ecfd55d2b3894507c9fb71.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Somoy TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.12s" data-title="Bangla Vission" data-category="BANGLA" data-link="https://s1.itcnbd.live/BanglaVission/tracks-v1a1/playlist.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/1309a0efc5a76fd49339efecc54aaf24.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Bangla Vission</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.16s" data-title="ATN Bangla" data-category="BANGLA" data-link="https://s1.itcnbd.live/ATN.Bangla/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/atn_bangla_4c35d9.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">ATN Bangla</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.2s" data-title="ATN News" data-category="BANGLA" data-link="https://s1.itcnbd.live/ATN.News/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/0055615562f2fa520bc1e70e70101826.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">ATN News</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.24s" data-title="Channel 24" data-category="BANGLA" data-link="https://s1.itcnbd.live/Channel24/playlist.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/8efbe385b53dad439287946a94bc6198.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Channel 24</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.28s" data-title="DBC News" data-category="BANGLA" data-link="https://s1.itcnbd.live/DBC.News/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/DBC News HD.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">DBC News</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.32s" data-title="Channel I" data-category="BANGLA" data-link="https://s1.itcnbd.live/Channel.I/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/CHANNEL I1745044237.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Channel I</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.36s" data-title="PTV Sports" data-category="SPORTS" data-link="https://s1.itcnbd.live/PTV-Sports/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a4fca753fa36.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">PTV Sports</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.4s" data-title="Desh TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/Deshtv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/14ad4f463017b81d77dbebfd432b8796.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Desh TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.44s" data-title="My TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/MyTV/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adcb0226ba67.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">My TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.48s" data-title="Boishakhi TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/boisakhitv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/c2927d138c7e3d50a082ad2a69f3a414.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Boishakhi TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.52s" data-title="Bangla TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/Banglatv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/812ebc13efb691099eddf850f4434705.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Bangla TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.56s" data-title="RTV" data-category="BANGLA" data-link="https://s1.itcnbd.live/RTV/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adc92a03fd97.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">RTV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.6s" data-title="Deepto" data-category="BANGLA" data-link="https://s1.itcnbd.live/Deepto/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/ed7db3652e12343c3d5d7806fde30559.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Deepto</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.64s" data-title="Ekattor TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/ekattor/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/f4d29d6f73edc7634cf859346beb0dac.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Ekattor TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.68s" data-title="Masranga TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/Masranga.TV/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/maasranga_b1b734.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Masranga TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.72s" data-title="NTV" data-category="BANGLA" data-link="https://s1.itcnbd.live/Ntv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6b6442625d8bf99e1cab23ef0b51e757.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">NTV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.76s" data-title="GTV" data-category="BANGLA" data-link="https://s1.itcnbd.live/GTV/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6adc972e76bf4.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">GTV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.8s" data-title="Asian tv" data-category="BANGLA" data-link="https://s1.itcnbd.live/Asiantv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adcb074f11b1.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Asian tv</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.84s" data-title="Ekhuse TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/ekhusetv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adcaf81dbf72.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Ekhuse TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.88s" data-title="Independent TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/Independent.tv/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6b043e1d8c5c2162db72365e71a3d91f.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Independent TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.92s" data-title="Jamuna TV" data-category="BANGLA" data-link="https://s1.itcnbd.live/JAMUNA/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/51f904786ddd9fb9ff0760c5c538ee71.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Jamuna TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 0.96s" data-title="A Sports" data-category="SPORTS" data-link="https://s1.itcnbd.live/A-Sports/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6ad8bbc9ef98d.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">A Sports</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1s" data-title="Star Sports 1 HD" data-category="SPORTS" data-link="https://s1.itcnbd.live/Star.Sports.1.HD/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/2c166791df646118f460703c8eb49013.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Sports 1 HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.04s" data-title="Star Sports 2 HD" data-category="SPORTS" data-link="https://s1.itcnbd.live/Star.Sports.2.HD/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/0da4e1a035022e50dba7cccb5a8309b4.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Sports 2 HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.08s" data-title="Sony Sports 1" data-category="SPORTS" data-link="https://s1.itcnbd.live/sonyten1/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/73d893d56eb2196772ec08408e75c086.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Sports 1</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.12s" data-title="Sony Sports 2" data-category="SPORTS" data-link="https://s1.itcnbd.live/Sony.Sports2/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/mobile_logo_093449001666780976.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Sports 2</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.16s" data-title="Sony Sports 3" data-category="SPORTS" data-link="https://s1.itcnbd.live/sony.ten.3/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/89d79dd05cb8d59cbb43545ae48d59ff.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Sports 3</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.2s" data-title="Sony Sports 5" data-category="SPORTS" data-link="https://s1.itcnbd.live/sonytv5/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/37b58d4f3e4c51678307221242ba51ea.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Sports 5</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.24s" data-title="Star Sports Sel 1 HD" data-category="SPORTS" data-link="https://s1.itcnbd.live/Star.Sports.sel1.HD/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/5de6c6933459e984a3d67ac5cd0c6f97.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Sports Sel 1 HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.28s" data-title="Star Sports Sel 2 HD" data-category="SPORTS" data-link="https://s1.itcnbd.live/Star.Sports.sel2.HD/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/98c96edb2e6188f896897351f5067091.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Sports Sel 2 HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.32s" data-title="Willow" data-category="SPORTS" data-link="https://s1.itcnbd.live/willow/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6add2329cd1b8.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Willow</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.36s" data-title="Eurosports" data-category="SPORTS" data-link="https://s1.itcnbd.live/Eurosports/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/EUROSPORTS HD1745040406.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Eurosports</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.4s" data-title="Bein Xtra" data-category="SPORTS" data-link="https://s1.itcnbd.live/Benxrta/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6adcab2820eb9.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Bein Xtra</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">SPORTS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.44s" data-title="Star Jalsha HD" data-category="INDIAN BANGLA" data-link="https://s1.itcnbd.live/starjalsha/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/5652ba894708b5653e861da96d09927b.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Jalsha HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">INDIAN BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.48s" data-title="Jalsha Movies HD" data-category="INDIAN BANGLA" data-link="https://s1.itcnbd.live/Jalsha.movies/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adc9c6f06b4b.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Jalsha Movies HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">INDIAN BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.52s" data-title="Zee Bangla HD" data-category="INDIAN BANGLA" data-link="https://s1.itcnbd.live/Zee-Bangla/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/385559a759641accfbd08d00ad93d832.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Zee Bangla HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">INDIAN BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.56s" data-title="Sony Ahat" data-category="INDIAN BANGLA" data-link="https://s1.itcnbd.live/Sony.aaht/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/mobile_logo_496322001666780228.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Ahat</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">INDIAN BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.6s" data-title="Enter 10 bangla" data-category="INDIAN BANGLA" data-link="https://s1.itcnbd.live/enter10bangla/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/enter10_bangla_hd_21.jpeg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Enter 10 bangla</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">INDIAN BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.64s" data-title="Colors Bangla HD" data-category="INDIAN BANGLA" data-link="https://s1.itcnbd.live/Colors.Bangla/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/COLORS HD1745031404.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Colors Bangla HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">INDIAN BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.68s" data-title="Star Plus" data-category="HINDI" data-link="https://s1.itcnbd.live/Star.plus/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/689cf06ed7858c99779138c6f4ab4072.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Plus</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.72s" data-title="Star Gold" data-category="HINDI" data-link="https://s1.itcnbd.live/Star.gold/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/STAR GOLD HD1745034037.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Gold</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.76s" data-title="Zee Cinema" data-category="HINDI" data-link="https://s1.itcnbd.live/Zee.Cinema/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/185dd7e03b2399a3cbf8696ff0f27086.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Zee Cinema</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.8s" data-title="And Picture" data-category="HINDI" data-link="https://s1.itcnbd.live/Andpicture/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/AND PICTURS HD1745031440.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">And Picture</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.84s" data-title="Sony TV HD" data-category="HINDI" data-link="https://s1.itcnbd.live/Sonytvhd/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/mobile_logo_149299001666780350_FdYK.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony TV HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.88s" data-title="Colors HD" data-category="HINDI" data-link="https://s1.itcnbd.live/colors/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/56d410379a3de85d2c3a4d0031fc3870.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Colors HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.92s" data-title="Sony Max HD" data-category="HINDI" data-link="https://s1.itcnbd.live/sonymax/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/mobile_logo_612341001666782969.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Max HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 1.96s" data-title="9XM-Music" data-category="MUSIC" data-link="https://s1.itcnbd.live/9XM-Music/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a610b5271a81.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">9XM-Music</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">MUSIC</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2s" data-title="Fon Music" data-category="MUSIC" data-link="https://s1.itcnbd.live/fon-music/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a4ff53728846.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Fon Music</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">MUSIC</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.04s" data-title="SangeetBangla" data-category="MUSIC" data-link="https://s1.itcnbd.live/SangeetBangla/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a54cded11ead.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">SangeetBangla</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">MUSIC</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.08s" data-title="Disney" data-category="KIDS" data-link="https://s3.itcnbd.live/server-6/stream/aW1nL3BsYXkucGhwP3N0cmVhbT02MDI.m3u8" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a550c13896f2.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Disney</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.12s" data-title="IRIB Quran" data-category="ISLAMIC" data-link="https://s1.itcnbd.live/IRIB-Quran/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6a551e277ab08.jpeg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">IRIB Quran</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">ISLAMIC</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.16s" data-title="Star Movies" data-category="ENGLISH" data-link="https://s1.itcnbd.live/Star.Movies/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/3ef5003923597ea5e8333cfdc4078107.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Star Movies</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">ENGLISH</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.2s" data-title="Sony Pix HD" data-category="ENGLISH" data-link="https://s1.itcnbd.live/Pix.HD/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/94b2afbf1d20c2768eeb37c434d3b0bd.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Sony Pix HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">ENGLISH</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.24s" data-title="NAT GEO" data-category="DOCUMENTARY" data-link="https://s1.itcnbd.live/Nat.geo/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/324f442b9e2f8edc5d19d8942c05da76.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">NAT GEO</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">DOCUMENTARY</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.28s" data-title="NICK" data-category="KIDS" data-link="https://s1.itcnbd.live/nick/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/029be469bbb6e177e8038ddc3aa5b3f9.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">NICK</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.32s" data-title="Disney" data-category="KIDS" data-link="https://s1.itcnbd.live/Disney/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6af069890bb27.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Disney</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.36s" data-title="Al Jazira" data-category="ENGLISH NEWS" data-link="https://s1.itcnbd.live/alzazira/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/1735547218986.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Al Jazira</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">ENGLISH NEWS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.4s" data-title="BBC News" data-category="ENGLISH NEWS" data-link="https://s1.itcnbd.live/bbc/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adcadf375408.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">BBC News</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">ENGLISH NEWS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.44s" data-title="Discovery Kids" data-category="KIDS" data-link="https://s1.itcnbd.live/Discoverykids/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6adcae7c3630f.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Discovery Kids</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.48s" data-title="Cartoon Network" data-category="KIDS" data-link="https://s1.itcnbd.live/CN/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/0903d4182db0a0b195728101485bbb69.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Cartoon Network</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.52s" data-title="Discovery HD" data-category="DOCUMENTARY" data-link="https://s1.itcnbd.live/Discovery/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/921b67352a920d51b04cd550b6735fc0.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Discovery HD</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">DOCUMENTARY</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.56s" data-title="Animal Planet TV" data-category="DOCUMENTARY" data-link="https://s1.itcnbd.live/Animal/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/ANIMAL PLANET HD1745038671.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Animal Planet TV</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">DOCUMENTARY</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.6s" data-title="Kushbu Bangla" data-category="BANGLA" data-link="https://s1.itcnbd.live/Kushbubangla/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6add130e58169.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Kushbu Bangla</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">BANGLA</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.64s" data-title="Bollymovie" data-category="HINDI" data-link="https://s1.itcnbd.live/Bollymovie/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6add14ab8a228.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Bollymovie</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.68s" data-title="Goldmine" data-category="HINDI" data-link="https://s1.itcnbd.live/Goldmine/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6add161f2c4ac.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Goldmine</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.72s" data-title="Goldmine movie" data-category="HINDI" data-link="https://s1.itcnbd.live/Goldminemovie/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/6add16d984bd9.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Goldmine movie</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">HINDI</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.76s" data-title="Pogo" data-category="KIDS" data-link="https://s1.itcnbd.live/pogo/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/POGO1745041515.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Pogo</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.8s" data-title="Music India" data-category="MUSIC" data-link="https://s1.itcnbd.live/musicindia/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/music_india_hd_25.jpeg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Music India</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">MUSIC</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.84s" data-title="Dhoom" data-category="MUSIC" data-link="https://s1.itcnbd.live/Dhoomban/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6add1e0259104.webp" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Dhoom</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">MUSIC</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.88s" data-title="Travelxp" data-category="DOCUMENTARY" data-link="https://s1.itcnbd.live/Travelxp/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="https://itcnbd.live/images/TRAVEL%20XP1745043118.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Travelxp</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">DOCUMENTARY</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.92s" data-title="Wow Kids" data-category="KIDS" data-link="https://s1.itcnbd.live/wowkids/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6aef2d47edc49.jpg" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Wow Kids</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="channel-card card-visible animate-fade-in-up cursor-pointer group" style="animation-delay: 2.96s" data-title="Pokemon" data-category="KIDS" data-link="https://s1.itcnbd.live/Pokemon/index.m3u8?token=0000000000000000000000000000000000000000-0000000000000000-1795508732-1795494332&amp;remote=no_check_ip" onclick="playChannel(this.dataset.link, this.dataset.title, this.dataset.category, (this.querySelector('img')||{}).src||'')">
+                        <div class="relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1">
+                            <div class="aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative">
+                                <img src="/images/6b044674542c0.png" alt="" class="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                                <div class="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300">
+                                    <div class="w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30">
+                                        <i data-feather="play" class="w-5 h-5 text-white fill-current ml-0.5"></i>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="px-3 pb-3 pt-0">
+                                <p class="text-sm font-medium text-gray-200 truncate mb-1">Pokemon</p>
+                                <span class="inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500">KIDS</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        <!-- Player Modal -->
+        <div id="player-modal" class="fixed inset-0 z-[100] hidden">
+            <div class="absolute inset-0 bg-black/90 backdrop-blur-sm animate-fade-in" onclick="closePlayer()"></div>
+            <div class="relative z-10 flex flex-col items-center justify-center min-h-screen p-4">
+                <div class="w-full max-w-5xl animate-fade-in-up">
+                    <!-- Close button -->
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-3">
+                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                            <h3 id="player-title" class="text-lg font-bold text-white"></h3>
+                            <span id="player-category-badge" class="hidden px-2 py-0.5 bg-blue-500/15 border border-blue-500/20 rounded-full text-xs text-blue-300"></span>
+                        </div>
+                        <button onclick="closePlayer()" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 transition-colors">
+                            <i data-feather="x" class="w-5 h-5 text-gray-300"></i>
+                        </button>
+                    </div>
+                    <!-- Video -->
+                    <div class="relative rounded-2xl overflow-hidden bg-black border border-white/10 shadow-2xl shadow-black/50">
+                        <video id="player-video" class="w-full aspect-video" controls autoplay playsinline></video>
+                        <!-- Loading spinner -->
+                        <div id="player-loading" class="absolute inset-0 flex items-center justify-center bg-black/50">
+                            <div class="w-10 h-10 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            feather.replace();
+
+            // More dropdown toggle
+            var moreBtn = document.getElementById('more-btn');
+            var moreDropdown = document.getElementById('more-dropdown');
+            moreBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                moreDropdown.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function() {
+                moreDropdown.classList.add('hidden');
+            });
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape')
+                    moreDropdown.classList.add('hidden');
+            });
+
+            var hlsInstance = null;
+            var searchInput = document.getElementById('search-input');
+            var grid = document.getElementById('channels-grid');
+            var noResults = document.getElementById('no-results');
+            var cards = grid ? Array.from(grid.querySelectorAll('.channel-card')) : [];
+            var chips = document.querySelectorAll('.cat-chip');
+            var header = document.getElementById('site-header');
+
+            // Header scroll effect
+            window.addEventListener('scroll', function() {
+                if (window.scrollY > 40) {
+                    header.classList.add('bg-[#030712]/90', 'backdrop-blur-xl', 'border-b', 'border-white/5');
+                } else {
+                    header.classList.remove('bg-[#030712]/90', 'backdrop-blur-xl', 'border-b', 'border-white/5');
+                }
+            });
+
+            // Category filter
+            chips.forEach(function(chip) {
+                chip.addEventListener('click', function() {
+                    chips.forEach(function(c) {
+                        c.classList.remove('bg-blue-500/15', 'text-blue-300', 'border-blue-500/30');
+                        c.classList.add('bg-white/5', 'text-gray-400', 'border-white/10');
+                    });
+                    this.classList.remove('bg-white/5', 'text-gray-400', 'border-white/10');
+                    this.classList.add('bg-blue-500/15', 'text-blue-300', 'border-blue-500/30');
+                    filterChannels();
+                });
+            });
+
+            // Search
+            searchInput.addEventListener('input', filterChannels);
+
+            function filterChannels() {
+                var q = searchInput.value.toLowerCase().trim();
+                var activeChip = document.querySelector('.cat-chip.bg-blue-500\\/15');
+                var cat = activeChip ? activeChip.dataset.category : '';
+                var visible = 0;
+
+                cards.forEach(function(card) {
+                    var title = card.dataset.title.toLowerCase();
+                    var cardCat = card.dataset.category;
+                    var matchSearch = !q || title.includes(q);
+                    var matchCat = !cat || cardCat === cat;
+
+                    if (matchSearch && matchCat) {
+                        card.classList.remove('card-hidden');
+                        card.classList.add('card-visible');
+                        card.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                        visible++;
+                    } else {
+                        card.classList.add('card-hidden');
+                        card.classList.remove('card-visible');
+                        card.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                    }
+                });
+
+                if (noResults) {
+                    noResults.classList.toggle('hidden', visible > 0);
+                }
+                if (grid) {
+                    grid.classList.toggle('hidden', visible === 0);
+                }
+            }
+
+            // Player
+            function playChannel(url, title, category, logo) {
+                // Save to last played
+                var data = JSON.parse(localStorage.getItem('lastPlayed') || '[]');
+                data = data.filter(function(ch) {
+                    return ch.link !== url;
+                });
+                data.unshift({
+                    link: url,
+                    title: title,
+                    category: category || '',
+                    logo: logo || ''
+                });
+                data = data.slice(0, 10);
+                localStorage.setItem('lastPlayed', JSON.stringify(data));
+                renderLastPlayed();
+
+                // Log play to server
+                var fd = new FormData();
+                fd.append('channel_title', title);
+                fd.append('played_url', url);
+                fetch('/api/log-play', {
+                    method: 'POST',
+                    body: fd
+                });
+
+                var modal = document.getElementById('player-modal');
+                var video = document.getElementById('player-video');
+                var loading = document.getElementById('player-loading');
+                var badge = document.getElementById('player-category-badge');
+
+                document.getElementById('player-title').textContent = title;
+
+                if (category) {
+                    badge.textContent = category;
+                    badge.classList.remove('hidden');
+                } else {
+                    badge.classList.add('hidden');
+                }
+
+                modal.classList.remove('hidden');
+                document.body.style.overflow = 'hidden';
+                loading.style.display = 'flex';
+
+                if (hlsInstance) {
+                    hlsInstance.destroy();
+                    hlsInstance = null;
+                }
+
+                if (url.indexOf('.m3u8') !== -1 && Hls.isSupported()) {
+                    hlsInstance = new Hls({
+                        maxBufferLength: 10,
+                        maxMaxBufferLength: 20,
+                        startLevel: -1
+                    });
+                    hlsInstance.loadSource(url);
+                    hlsInstance.attachMedia(video);
+                    hlsInstance.on(Hls.Events.MANIFEST_PARSED, function() {
+                        video.play().catch(function() {});
+                        loading.style.display = 'none';
+                    });
+                    hlsInstance.on(Hls.Events.ERROR, function(event, data) {
+                        if (data.fatal) {
+                            var isForbidden = data.response && (data.response.code === 403 || data.response.code === 401);
+                            if (isForbidden && url.indexOf('s1.itcnbd.live') !== -1) {
+                                fetch('/api/stream-url?url=' + encodeURIComponent(url)).then(function(r) {
+                                    return r.json();
+                                }).then(function(res) {
+                                    if (res && res.url && res.url !== url) {
+                                        url = res.url;
+                                        if (hlsInstance) {
+                                            hlsInstance.loadSource(url);
+                                            video.play().catch(function() {});
+                                        }
+                                        return;
+                                    }
+                                    loading.style.display = 'none';
+                                }).catch(function() {
+                                    loading.style.display = 'none';
+                                });
+                                return;
+                            }
+                            loading.style.display = 'none';
+                        }
+                    });
+                } else {
+                    video.src = url;
+                    video.addEventListener('loadeddata', function handler() {
+                        loading.style.display = 'none';
+                        video.removeEventListener('loadeddata', handler);
+                    });
+                    video.play().catch(function() {});
+                }
+            }
+
+            function closePlayer() {
+                var modal = document.getElementById('player-modal');
+                var video = document.getElementById('player-video');
+
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
+
+                if (hlsInstance) {
+                    hlsInstance.destroy();
+                    hlsInstance = null;
+                }
+
+                modal.classList.add('hidden');
+                document.body.style.overflow = '';
+            }
+
+            // Last Played
+            function renderLastPlayed() {
+                var data = JSON.parse(localStorage.getItem('lastPlayed') || '[]');
+                var section = document.getElementById('last-played-section');
+                var grid = document.getElementById('last-played-grid');
+
+                if (data.length === 0) {
+                    section.classList.add('hidden');
+                    return;
+                }
+                section.classList.remove('hidden');
+                grid.innerHTML = '';
+
+                data.forEach(function(ch) {
+                    var card = document.createElement('div');
+                    card.className = 'channel-card card-visible animate-fade-in-up cursor-pointer group';
+                    card.addEventListener('click', function() {
+                        playChannel(ch.link, ch.title, ch.category, ch.logo);
+                    });
+
+                    var inner = document.createElement('div');
+                    inner.className = 'relative overflow-hidden rounded-2xl bg-gray-900/60 border border-white/[0.06] transition-all duration-300 hover:border-blue-500/30 hover:shadow-lg hover:shadow-blue-500/10 hover:-translate-y-1';
+
+                    var imgContainer = document.createElement('div');
+                    imgContainer.className = 'aspect-square p-5 flex items-center justify-center bg-gray-950/40 relative';
+
+                    if (ch.logo) {
+                        var img = document.createElement('img');
+                        img.src = ch.logo;
+                        img.alt = '';
+                        img.className = 'w-full h-full object-contain transition-transform duration-500 group-hover:scale-110';
+                        img.loading = 'lazy';
+                        imgContainer.appendChild(img);
+                    } else {
+                        var icon = document.createElement('i');
+                        icon.setAttribute('data-feather', 'tv');
+                        icon.className = 'w-10 h-10 text-gray-700';
+                        imgContainer.appendChild(icon);
+                    }
+
+                    var overlay = document.createElement('div');
+                    overlay.className = 'absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-all duration-300';
+
+                    var playBtn = document.createElement('div');
+                    playBtn.className = 'w-12 h-12 rounded-full bg-blue-500/90 flex items-center justify-center opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100 transition-all duration-300 shadow-lg shadow-blue-500/30';
+                    var playIcon = document.createElement('i');
+                    playIcon.setAttribute('data-feather', 'play');
+                    playIcon.className = 'w-5 h-5 text-white fill-current ml-0.5';
+                    playBtn.appendChild(playIcon);
+                    overlay.appendChild(playBtn);
+                    imgContainer.appendChild(overlay);
+                    inner.appendChild(imgContainer);
+
+                    var textContainer = document.createElement('div');
+                    textContainer.className = 'px-3 pb-3 pt-0';
+
+                    var titleEl = document.createElement('p');
+                    titleEl.className = 'text-sm font-medium text-gray-200 truncate mb-1';
+                    titleEl.textContent = ch.title;
+                    textContainer.appendChild(titleEl);
+
+                    if (ch.category) {
+                        var catEl = document.createElement('span');
+                        catEl.className = 'inline-block px-2 py-0.5 bg-white/5 rounded text-[11px] text-gray-500';
+                        catEl.textContent = ch.category;
+                        textContainer.appendChild(catEl);
+                    }
+
+                    inner.appendChild(textContainer);
+                    card.appendChild(inner);
+                    grid.appendChild(card);
+                });
+
+                feather.replace();
+            }
+
+            renderLastPlayed();
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !document.getElementById('player-modal').classList.contains('hidden')) {
+                    closePlayer();
+                }
+            });
+
+            // Online users heartbeat
+            var onlineBadge = document.getElementById('online-count');
+            function sendHeartbeat() {
+                fetch('/api/heartbeat', {
+                    method: 'POST'
+                }).then(function(r) {
+                    return r.json();
+                }).then(function(d) {
+                    if (d.online !== undefined && onlineBadge) {
+                        onlineBadge.textContent = d.online + ' online';
+                    }
+                }).catch(function() {});
+            }
+            sendHeartbeat();
+            setInterval(sendHeartbeat, 60000);
+        </script>
+    </body>
+</html>
