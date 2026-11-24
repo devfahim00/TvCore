@@ -1,0 +1,20 @@
+# Rust
+/target
+**/*.rs.bk
+
+# We DO commit Cargo.lock: the repo ships applications (tvcore-ffi
+# cdylib + tvcore-cli), so reproducible builds win.
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Python / Node helpers some contributors use
+__pycache__/
+node_modules/
+
+# Local test output
+*.log

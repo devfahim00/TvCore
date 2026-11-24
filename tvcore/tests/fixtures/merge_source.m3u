@@ -1,0 +1,7 @@
+#EXTM3U
+#EXTINF:-1 group-title="BANGLA" tvg-logo="https://itcnbd.live/images/2cfd083570ecfd55.png",Somoy TV
+https://backup.example/somoy-backup.m3u8
+#EXTINF:-1 group-title="BANGLA",Somoy TV
+https://s3.itcnbd.live/server-6/stream/aW1nL3BsYXkucGhwP3N0cmVhbT0yMDU
+#EXTINF:-1 group-title="ENGLISH NEWS",Al Jazeera English
+https://s3.itcnbd.live/channel/aljazeera.m3u8

@@ -1,0 +1,18 @@
+#EXTM3U x-tvg-url="https://example.com/epg.xml"
+#EXTINF:-1 tvg-id="cnn.us" tvg-name="CNN, International" group-title="ENGLISH NEWS" tvg-logo="https://itcnbd.live/images/cnn.png",CNN International
+https://s3.itcnbd.live/channel/9f8e7d6c5b4a.m3u8
+#EXTGRP:KIDS
+#EXTINF:-1,Cartoon Network
+#EXTVLCOPT:http-user-agent=VLC/3.0.20
+#EXTVLCOPT:http-referrer=https://itcnbd.live/
+https://s1.itcnbd.live/Cartoon.Network/tracks-v1a1/playlist.m3u8
+#EXTINF:-1,Channel Without A URL Line (skipped)
+#EXTINF:-1 group-title='MUSIC',Deshi Music HD
+https://tapmad.example/main.m3u8|user-agent=Mozilla/5.0 (Linux; Android 14)|Referer=https://tapmad.example/
+#EXTINF:-1 group-title="ENGLISH",NASA TV
+nasa.m3u8
+#EXTINF:-1 tvg-id="willow.tv" group-title="SPORTS",Willow HD
+http://103.16.24.4:8083/willow.m3u8
+http://stream-without-extinf.example/live.ts
+#EXTINF:-1 group-title="BD BANGLA",বাংলাদেশ টিভি
+https://s3.itcnbd.live/channel/btv-national.m3u8

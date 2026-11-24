@@ -1,0 +1,18 @@
+[package]
+name = "tvcore"
+description = "Live TV core: channel listing, search and stream playback resolution (itcnbd.live and any M3U/M3U8 playlist)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme = "../README.md"
+
+[dependencies]
+serde = { workspace = true }
+ureq = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

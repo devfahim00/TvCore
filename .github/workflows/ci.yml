@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Rust ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust (stable)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Lint (clippy, warnings are errors)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Unit + integration tests (offline)
+        run: cargo test --workspace
+
+      - name: Release build (core + FFI + CLI)
+        run: cargo build --release --workspace
+
+      - name: C ABI demo (compile and run)
+        if: runner.os == 'Linux'
+        run: |
+          cc tvcore-ffi/examples/demo.c -o /tmp/tvcore-demo \
+            -Itvcore-ffi/include -Ltarget/release -ltvcore \
+            -Wl,-rpath,$PWD/target/release
+          /tmp/tvcore-demo
+
+      - name: CLI smoke test (offline demo playlist)
+        if: runner.os == 'Linux'
+        run: |
+          ./target/release/tvcore-cli --offline categories
+          ./target/release/tvcore-cli --offline search "sprots"
+          ./target/release/tvcore-cli --offline play "somoy"
+
+  android-ffi:
+    name: FFI cross-build (Android)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust + targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk || true
+      - name: Build libtvcore.so for Android ABIs
+        run: |
+          cargo ndk -t arm64-v8a -t armeabi-v7a \
+            -o /tmp/jniLibs build --release -p tvcore-ffi
+          ls -R /tmp/jniLibs
